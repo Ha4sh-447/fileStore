@@ -1,5 +1,4 @@
 "use client";
-import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import {
 	SignedOut,
@@ -9,17 +8,17 @@ import {
 	useOrganization,
 	useUser,
 } from "@clerk/nextjs";
+
 import { useMutation, useQuery } from "convex/react";
-import ClerkSignInFunc from "./signIn";
+
+import { UploadBtn } from "./uploadBtn";
+import { FileCard } from "./fileCard";
+import Image from "next/image";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
-	const createFile = useMutation(api.files.createFile);
 	const organization = useOrganization();
 	const user = useUser();
-
-	// ! We are overloading orgId with user id which is sort of bad
-	// ! also we are not confirming wether the identity of the user logged in refers to the current organization or not,
-	// ! currently we just log in and perform no checks over the user and his organizations
 
 	let orgId: string | undefined = undefined;
 	if (organization.isLoaded && user.isLoaded) {
@@ -29,34 +28,40 @@ export default function Home() {
 	const files = useQuery(api.files.getFiles, orgId ? { orgId } : "skip");
 	// console.log(organization?.id);
 	return (
-		<main className="flex min-h-screen flex-col items-center justify-between p-24">
-			{files?.map((file) => {
-				return <div key={file._id}>{file.name}</div>;
-			})}
+		<main className="container mx-auto pt-12">
+			{files === undefined && (
+				<div className="flex flex-col gap-8 w-full items-center mt-10">
+					<Loader2 className="h-24 w-24 animate-spin" />
+					<div className="text-2xl">Loading...</div>
+				</div>
+			)}
 
-			<Button
-				onClick={() => {
-					if (!orgId) return;
+			{files && files.length === 0 && (
+				<div className="flex flex-col gap-8 items-center w-full mt-10">
+					<Image
+						alt="An image with empty directory"
+						height="300"
+						width="300"
+						src="/empty.svg"
+					/>
+					<div className="text-2xl">You have no files, upload one now</div>
+					<UploadBtn />
+				</div>
+			)}
 
-					createFile({
-						name: "Hello world",
-						orgId,
-					});
-				}}
-			>
-				Create file
-			</Button>
-			<Button
-				onClick={() => {
-					organization.isLoaded
-						? console.log(organization.organization)
-						: user.isLoaded
-							? console.log(user.user)
-							: null;
-				}}
-			>
-				Hello World
-			</Button>
+			{files && files.length > 0 && (
+				<>
+					<div className="flex justify-between items-center mb-2">
+						<h1 className="font-bold text-4xl">Your Files</h1>
+						<UploadBtn />
+					</div>
+					<div className="grid grid-cols-4 gap-4">
+						{files?.map((file) => {
+							return <FileCard key={file._id} file={file} />;
+						})}
+					</div>
+				</>
+			)}
 		</main>
 	);
 }
