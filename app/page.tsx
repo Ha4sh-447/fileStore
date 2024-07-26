@@ -26,17 +26,18 @@ export default function Home() {
 	}
 
 	const files = useQuery(api.files.getFiles, orgId ? { orgId } : "skip");
+	const isLoading = files === undefined;
 	// console.log(organization?.id);
 	return (
 		<main className="container mx-auto pt-12">
-			{files === undefined && (
+			{isLoading && (
 				<div className="flex flex-col gap-8 w-full items-center mt-10">
 					<Loader2 className="h-24 w-24 animate-spin" />
 					<div className="text-2xl">Loading...</div>
 				</div>
 			)}
 
-			{files && files.length === 0 && (
+			{!isLoading && files.length === 0 && (
 				<div className="flex flex-col gap-8 items-center w-full mt-10">
 					<Image
 						alt="An image with empty directory"
@@ -49,7 +50,7 @@ export default function Home() {
 				</div>
 			)}
 
-			{files && files.length > 0 && (
+			{!isLoading && files.length > 0 && (
 				<>
 					<div className="flex justify-between items-center mb-2">
 						<h1 className="font-bold text-4xl">Your Files</h1>

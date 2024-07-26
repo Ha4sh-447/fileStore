@@ -1,6 +1,8 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { getUser } from "./users";
+import { fileType } from "./schema";
+import { internal } from "./_generated/api";
 
 async function hasAccessToOrgs(
 	ctx: QueryCtx | MutationCtx,
@@ -33,6 +35,7 @@ export const createFile = mutation({
 	args: {
 		name: v.string(),
 		fileId: v.id("_storage"),
+		type: fileType,
 		orgId: v.string(),
 	},
 	async handler(ctx, args) {
@@ -56,6 +59,7 @@ export const createFile = mutation({
 		await ctx.db.insert("files", {
 			name: args.name,
 			fileId: args.fileId,
+			type: args.type,
 			orgId: args.orgId,
 		});
 	},
