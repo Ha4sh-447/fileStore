@@ -6,6 +6,7 @@ export const fileType = v.union(
 	v.literal("csv"),
 	v.literal("pdf")
 );
+export const roles = v.union(v.literal("admin"), v.literal("member"));
 
 export default defineSchema({
 	files: defineTable({
@@ -25,6 +26,12 @@ export default defineSchema({
 
 	users: defineTable({
 		tokenIdentifier: v.string(),
-		orgId: v.array(v.string()),
+		// personal account??
+		orgIds: v.array(
+			v.object({
+				orgId: v.string(),
+				role: roles,
+			})
+		),
 	}).index("by_tokenIdentifier", ["tokenIdentifier"]),
 });

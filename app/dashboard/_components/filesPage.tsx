@@ -51,6 +51,11 @@ export default function FilesPage({
 		orgId = organization.organization?.id ?? user.user?.id;
 	}
 
+	const favorites = useQuery(
+		api.files.getAllFavorites,
+		orgId ? { orgId } : "skip"
+	);
+
 	const files = useQuery(
 		api.files.getFiles,
 		orgId ? { orgId, query, fav } : "skip"
@@ -75,7 +80,13 @@ export default function FilesPage({
 
 					<div className="grid grid-cols-3 gap-4">
 						{files?.map((file) => {
-							return <FileCard key={file._id} file={file} />;
+							return (
+								<FileCard
+									favorites={favorites ?? []}
+									key={file._id}
+									file={file}
+								/>
+							);
 						})}
 					</div>
 					{fav && files.length === 0 && (

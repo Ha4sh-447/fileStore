@@ -32,6 +32,17 @@ http.route({
 					await ctx.runMutation(internal.users.addOrgsIdtoUser, {
 						tokenIdentifier: `https://destined-heron-54.clerk.accounts.dev|${result.data.public_user_data.user_id}`,
 						orgId: result.data.organization.id,
+						role: result.data.role === "admin" ? "admin" : "member",
+					});
+					break;
+
+				case "organizationMembership.updated":
+					await ctx.runMutation(internal.users.updateUserRoleInOrgs, {
+						tokenIdentifier: `https://destined-heron-54.clerk.accounts.dev|${result.data.public_user_data.user_id}`,
+						orgId: result.data.organization.id,
+						// BUG
+						// on formation of an organization by an admin, it
+						role: result.data.role === "org:admin" ? "admin" : "member",
 					});
 					break;
 			}

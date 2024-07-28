@@ -5,18 +5,32 @@ import { fileType } from "./schema";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
-async function hasAccessToOrgs(
-	ctx: QueryCtx | MutationCtx,
-	tokenIdentifier: string,
-	orgId: string
-) {
-	const user = await getUser(ctx, tokenIdentifier);
+async function hasAccessToOrg(ctx: QueryCtx | MutationCtx, orgId: string) {
+	const identity = await ctx.auth.getUserIdentity();
 
-	// in frontend we are overloading the orgId with user id too hence the second check
+	if (!identity) {
+		return null;
+	}
+
+	const user = await ctx.db
+		.query("users")
+		.withIndex("by_tokenIdentifier", (q) =>
+			q.eq("tokenIdentifier", identity.tokenIdentifier)
+		)
+		.first();
+
+	if (!user) {
+		return null;
+	}
+
 	const hasAccess =
-		user.orgId.includes(orgId) || user.tokenIdentifier.includes(orgId);
+		user.orgIds.some((item) => item.orgId === orgId) ||
+		user.tokenIdentifier.includes(orgId);
+	if (!hasAccess) {
+		return null;
+	}
 
-	return hasAccess;
+	return { user };
 }
 
 export const generateUploadUrl = mutation(async (ctx) => {
@@ -40,19 +54,7 @@ export const createFile = mutation({
 		orgId: v.string(),
 	},
 	async handler(ctx, args) {
-		// adding auth
-		const identity = await ctx.auth.getUserIdentity();
-		console.log(identity);
-		if (!identity) {
-			throw new ConvexError("You need to be logged in");
-		}
-
-		const hasAccess = await hasAccessToOrgs(
-			ctx,
-			identity.tokenIdentifier,
-			args.orgId
-		);
-
+		const hasAccess = await hasAccessToOrg(ctx, args.orgId);
 		if (!hasAccess) {
 			throw new ConvexError("You do not have access to this organization");
 		}
@@ -77,6 +79,14 @@ export const deleteFile = mutation({
 			throw new ConvexError("No access to file");
 		}
 
+		const isAdmin =
+			access.user.orgIds.find((orgs) => orgs.orgId === access.file.orgId)
+				?.role === "admin";
+
+		if (!isAdmin) {
+			throw new ConvexError("You don't have permission to delete this file");
+		}
+
 		await ctx.db.delete(access.file._id);
 	},
 });
@@ -88,17 +98,7 @@ export const getFiles = query({
 		fav: v.optional(v.boolean()),
 	},
 	async handler(ctx, args) {
-		const identity = await ctx.auth.getUserIdentity();
-
-		if (!identity) {
-			return [];
-		}
-
-		const hasAccess = await hasAccessToOrgs(
-			ctx,
-			identity.tokenIdentifier,
-			args.orgId
-		);
+		const hasAccess = await hasAccessToOrg(ctx, args.orgId);
 
 		if (!hasAccess) {
 			return [];
@@ -119,21 +119,10 @@ export const getFiles = query({
 		}
 
 		if (args.fav) {
-			const user = await ctx.db
-				.query("users")
-				.withIndex("by_tokenIdentifier", (q) =>
-					q.eq("tokenIdentifier", identity.tokenIdentifier)
-				)
-				.first();
-
-			if (!user) {
-				return files;
-			}
-
 			const favorites = await ctx.db
 				.query("favorites")
 				.withIndex("by_userId_orgId_fileId", (q) =>
-					q.eq("userId", user._id).eq("orgId", args.orgId)
+					q.eq("userId", hasAccess.user._id).eq("orgId", args.orgId)
 				)
 				.collect();
 
@@ -183,28 +172,36 @@ async function hasAccessToFile(
 	ctx: QueryCtx | MutationCtx,
 	fileId: Id<"files">
 ) {
-	const identity = await ctx.auth.getUserIdentity();
-
-	if (!identity) {
-		return null;
-	}
-
-	const user = await getUser(ctx, identity.tokenIdentifier);
-
 	const file = await ctx.db.get(fileId);
 
 	if (!file) {
 		return null;
 	}
 
-	const hasAccess = await hasAccessToOrgs(
-		ctx,
-		identity.tokenIdentifier,
-		file.orgId
-	);
+	const hasAccess = await hasAccessToOrg(ctx, file.orgId);
 
 	if (!hasAccess) {
 		return null;
 	}
-	return { user, file };
+	return { user: hasAccess.user, file };
 }
+
+export const getAllFavorites = query({
+	args: { orgId: v.string() },
+	async handler(ctx, args) {
+		const hasAccess = await hasAccessToOrg(ctx, args.orgId);
+
+		if (!hasAccess) {
+			return [];
+		}
+
+		const favorites = await ctx.db
+			.query("favorites")
+			.withIndex("by_userId_orgId_fileId", (q) =>
+				q.eq("userId", hasAccess.user._id).eq("orgId", args.orgId)
+			)
+			.collect();
+
+		return favorites;
+	},
+});

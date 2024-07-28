@@ -34,6 +34,7 @@ import {
 	FileTextIcon,
 	GanttChartIcon,
 	ImageIcon,
+	StarHalf,
 	StarIcon,
 	TrashIcon,
 } from "lucide-react";
@@ -44,8 +45,9 @@ import { useToast } from "@/components/ui/use-toast";
 import Image from "next/image";
 import { getURL } from "next/dist/shared/lib/utils";
 import { url } from "inspector";
+import { Protect } from "@clerk/nextjs";
 
-function FileActions({ file }: { file: Doc<"files"> }) {
+function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 	const deleteFile = useMutation(api.files.deleteFile);
 	const toggleFav = useMutation(api.files.addFavorite);
 	const { toast } = useToast();
@@ -68,16 +70,25 @@ function FileActions({ file }: { file: Doc<"files"> }) {
 							});
 						}}
 					>
-						<StarIcon className="w-4 h-4" /> Favorite
+						{isFav ? (
+							<div className="flex gap-1 items-center">
+								<StarIcon className="w-4 h-4" /> Unfavorite
+							</div>
+						) : (
+							<div className="flex gap-1 items-center">
+								<StarHalf className="w-4 h-4" /> Favorite
+							</div>
+						)}
 					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-
-					<DropdownMenuItem
-						className="flex gap-1 text-red-600 items-center cursor-pointer"
-						onClick={() => setIsConfirmOpen(true)}
-					>
-						<TrashIcon className="w-4 h-4" /> Delete
-					</DropdownMenuItem>
+					<Protect role="org:admin" fallback={<></>}>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem
+							className="flex gap-1 text-red-600 items-center cursor-pointer"
+							onClick={() => setIsConfirmOpen(true)}
+						>
+							<TrashIcon className="w-4 h-4" /> Delete
+						</DropdownMenuItem>
+					</Protect>
 				</DropdownMenuContent>
 			</DropdownMenu>
 
@@ -125,13 +136,23 @@ function getFileUrl(fileId: Id<"_storage">): string {
 	// return imageUrl;
 }
 
-export function FileCard({ file }: { file: Doc<"files"> }) {
+export function FileCard({
+	file,
+	favorites,
+}: {
+	file: Doc<"files">;
+	favorites: Doc<"favorites">[];
+}) {
 	const typeIcons = {
 		image: <ImageIcon />,
 		pdf: <FileTextIcon />,
 		csv: <GanttChartIcon />,
 		// https://elated-ibex-292.convex.cloud/api/storage/f18a7832-d613-4aa4-a18b-0f0898de988e
 	} as Record<Doc<"files">["type"], ReactNode>;
+
+	const isFavorited = favorites.some(
+		(favorite) => favorite.fileId === file._id
+	);
 
 	// console.log(getFileUrl(file.fileId));
 	return (
@@ -142,7 +163,7 @@ export function FileCard({ file }: { file: Doc<"files"> }) {
 					{file.name}
 				</CardTitle>
 				<div className="absolute top-3 right-3">
-					<FileActions file={file} />
+					<FileActions file={file} isFav={isFavorited} />
 				</div>
 				{/* <CardDescription>Card Description</CardDescription> */}
 			</CardHeader>
