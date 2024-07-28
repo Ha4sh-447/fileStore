@@ -34,6 +34,7 @@ import {
 	FileTextIcon,
 	GanttChartIcon,
 	ImageIcon,
+	StarIcon,
 	TrashIcon,
 } from "lucide-react";
 import { ReactNode, useState } from "react";
@@ -46,27 +47,41 @@ import { url } from "inspector";
 
 function FileActions({ file }: { file: Doc<"files"> }) {
 	const deleteFile = useMutation(api.files.deleteFile);
+	const toggleFav = useMutation(api.files.addFavorite);
 	const { toast } = useToast();
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
 	return (
 		<>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<button>
+						<EllipsisVertical />
+					</button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent>
+					<DropdownMenuItem
+						className="flex gap-1  items-center cursor-pointer"
+						onClick={() => {
+							toggleFav({
+								fileId: file._id,
+							});
+						}}
+					>
+						<StarIcon className="w-4 h-4" /> Favorite
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+
+					<DropdownMenuItem
+						className="flex gap-1 text-red-600 items-center cursor-pointer"
+						onClick={() => setIsConfirmOpen(true)}
+					>
+						<TrashIcon className="w-4 h-4" /> Delete
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+
 			<AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-				<AlertDialogTrigger>
-					<DropdownMenu>
-						<DropdownMenuTrigger>
-							<EllipsisVertical />
-						</DropdownMenuTrigger>
-						<DropdownMenuContent>
-							<DropdownMenuItem
-								className="flex gap-1 text-red-600 items-center cursor-pointer"
-								onClick={() => setIsConfirmOpen(true)}
-							>
-								<TrashIcon className="w-4 h-4" /> Delete
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</AlertDialogTrigger>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>

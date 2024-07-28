@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQuery } from "convex/react";
-import ClerkSignInFunc from "./signIn";
+import ClerkSignInFunc from "../../signIn";
 import {
 	Dialog,
 	DialogContent,
