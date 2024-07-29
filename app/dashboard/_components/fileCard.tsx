@@ -31,24 +31,29 @@ import {
 import {
 	EllipsisVertical,
 	File,
+	FileIcon,
 	FileTextIcon,
 	GanttChartIcon,
 	ImageIcon,
 	StarHalf,
 	StarIcon,
 	TrashIcon,
+	UndoIcon,
 } from "lucide-react";
 import { ReactNode, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useToast } from "@/components/ui/use-toast";
 import Image from "next/image";
 import { getURL } from "next/dist/shared/lib/utils";
 import { url } from "inspector";
 import { Protect } from "@clerk/nextjs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { format, formatDistance, formatRelative, subDays } from "date-fns";
 
 function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 	const deleteFile = useMutation(api.files.deleteFile);
+	const restoreFile = useMutation(api.files.restoreFile);
 	const toggleFav = useMutation(api.files.addFavorite);
 	const { toast } = useToast();
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -80,13 +85,36 @@ function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 							</div>
 						)}
 					</DropdownMenuItem>
+					<DropdownMenuItem
+						className="flex gap-1  items-center cursor-pointer"
+						onClick={() => window.open("", "_blank")}
+					>
+						<FileIcon className="w-4 h-4" />
+						Download
+					</DropdownMenuItem>
 					<Protect role="org:admin" fallback={<></>}>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							className="flex gap-1 text-red-600 items-center cursor-pointer"
-							onClick={() => setIsConfirmOpen(true)}
+							className="flex gap-1 items-center cursor-pointer"
+							onClick={() => {
+								if (file.isMarkedDeleted) {
+									restoreFile({
+										fileId: file._id,
+									});
+								} else {
+									setIsConfirmOpen(true);
+								}
+							}}
 						>
-							<TrashIcon className="w-4 h-4" /> Delete
+							{file.isMarkedDeleted ? (
+								<div className="flex gap-1 text-green-600 items-center cursor-pointer">
+									<UndoIcon className="w-4 h-4" /> Restore
+								</div>
+							) : (
+								<div className="flex gap-1 text-red-600 items-center cursor-pointer">
+									<TrashIcon className="w-4 h-4" /> Delete
+								</div>
+							)}
 						</DropdownMenuItem>
 					</Protect>
 				</DropdownMenuContent>
@@ -112,8 +140,8 @@ function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 								});
 								toast({
 									variant: "default",
-									title: "File deleted",
-									description: "Your file has been deleted",
+									title: "File has been marked deleted",
+									description: "Your file has been marked for deletion",
 								});
 							}}
 						>
@@ -127,14 +155,14 @@ function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 }
 
 //  !Image route fix needed
-function getFileUrl(fileId: Id<"_storage">): string {
-	const imageUrl = `${process.env.NEXT_PUBLIC_CONVEX_URL}/getImage`;
-	// const imageUrl = `${process.env.NEXT_PUBLIC_CONVEX_URL}/api/storage/${fileId}`;
-	const url = new URL(imageUrl);
-	url.searchParams.set("storageId", fileId);
-	return url.href;
-	// return imageUrl;
-}
+// function getFileUrl(fileId: Id<"_storage">): string {
+// 	const imageUrl = `${process.env.NEXT_PUBLIC_CONVEX_URL}/getImage`;
+// 	// const imageUrl = `${process.env.NEXT_PUBLIC_CONVEX_URL}/api/storage/${fileId}`;
+// 	const url = new URL(imageUrl);
+// 	url.searchParams.set("storageId", fileId);
+// 	return url.href;
+// 	// return imageUrl;
+// }
 
 export function FileCard({
 	file,
@@ -143,6 +171,9 @@ export function FileCard({
 	file: Doc<"files">;
 	favorites: Doc<"favorites">[];
 }) {
+	const userProfile = useQuery(api.users.getUserProfile, {
+		userId: file.userId,
+	});
 	const typeIcons = {
 		image: <ImageIcon />,
 		pdf: <FileTextIcon />,
@@ -154,11 +185,10 @@ export function FileCard({
 		(favorite) => favorite.fileId === file._id
 	);
 
-	// console.log(getFileUrl(file.fileId));
 	return (
 		<Card>
 			<CardHeader className="relative">
-				<CardTitle className="flex gap-2">
+				<CardTitle className="flex gap-2 text-base font-normal">
 					<div className="flex justify-center">{typeIcons[file.type]}</div>
 					{file.name}
 				</CardTitle>
@@ -169,21 +199,23 @@ export function FileCard({
 			</CardHeader>
 			<CardContent className="h-[200px] flex justify-center items-center">
 				{file.type === "image" && (
-					<Image
-						alt={file.name}
-						width="200"
-						height="100"
-						src={getFileUrl(file.fileId)}
-					/>
+					<Image alt={file.name} width="200" height="100" src={""} />
 				)}
 
 				{file.type === "csv" && <GanttChartIcon className="w-20 h-20" />}
 				{file.type === "pdf" && <FileTextIcon className="w-20 h-20" />}
 			</CardContent>
-			<CardFooter className="flex justify-center">
-				<Button onClick={() => window.open(getFileUrl(file.fileId), "_blank")}>
-					Download
-				</Button>
+			<CardFooter className="flex gap-2 text-xs text-gray-100">
+				<div className="flex gap-2 text-xs text-gray-700 w-40 items-center">
+					<Avatar className="w-6 h-6">
+						<AvatarImage src={userProfile?.image} />
+						<AvatarFallback>CN</AvatarFallback>
+					</Avatar>
+					{userProfile?.name}
+				</div>
+				<div className="text-xs text-gray-700">
+					Uploaded {formatRelative(new Date(file._creationTime), new Date())}
+				</div>
 			</CardFooter>
 		</Card>
 	);

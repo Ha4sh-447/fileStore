@@ -39,9 +39,11 @@ function PlaceHolder() {
 export default function FilesPage({
 	title,
 	fav,
+	deletedOnly,
 }: {
 	title: string;
 	fav?: boolean;
+	deletedOnly?: boolean;
 }) {
 	const organization = useOrganization();
 	const user = useUser();
@@ -58,7 +60,7 @@ export default function FilesPage({
 
 	const files = useQuery(
 		api.files.getFiles,
-		orgId ? { orgId, query, fav } : "skip"
+		orgId ? { orgId, query, fav, deletedOnly } : "skip"
 	);
 	const isLoading = files === undefined;
 	return (

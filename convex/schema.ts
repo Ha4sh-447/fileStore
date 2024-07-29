@@ -16,7 +16,11 @@ export default defineSchema({
 		// in production grade we set it to optional so that existing data doesn't create a problem, and then loop over the existing and put up a default value
 		// orgId: v.optional(v.string()),
 		orgId: v.string(),
-	}).index("by_orgId", ["orgId"]),
+		userId: v.id("users"),
+		isMarkedDeleted: v.optional(v.boolean()),
+	})
+		.index("by_orgId", ["orgId"])
+		.index("by_isMarkedDeleted", ["isMarkedDeleted"]),
 
 	favorites: defineTable({
 		fileId: v.id("files"),
@@ -26,6 +30,8 @@ export default defineSchema({
 
 	users: defineTable({
 		tokenIdentifier: v.string(),
+		name: v.optional(v.string()),
+		image: v.optional(v.string()),
 		// personal account??
 		orgIds: v.array(
 			v.object({

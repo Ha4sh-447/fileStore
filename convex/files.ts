@@ -1,5 +1,11 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import {
+	internalMutation,
+	mutation,
+	MutationCtx,
+	query,
+	QueryCtx,
+} from "./_generated/server";
 import { getUser } from "./users";
 import { fileType } from "./schema";
 import { internal } from "./_generated/api";
@@ -64,7 +70,25 @@ export const createFile = mutation({
 			fileId: args.fileId,
 			type: args.type,
 			orgId: args.orgId,
+			userId: hasAccess.user._id,
 		});
+	},
+});
+
+export const deleteFilePermanently = internalMutation({
+	args: {},
+	async handler(ctx) {
+		const files = await ctx.db
+			.query("files")
+			.withIndex("by_isMarkedDeleted", (q) => q.eq("isMarkedDeleted", true))
+			.collect();
+
+		await Promise.all(
+			files.map(async (file) => {
+				await ctx.storage.delete(file.fileId);
+				return await ctx.db.delete(file._id);
+			})
+		);
 	},
 });
 
@@ -87,7 +111,34 @@ export const deleteFile = mutation({
 			throw new ConvexError("You don't have permission to delete this file");
 		}
 
-		await ctx.db.delete(access.file._id);
+		await ctx.db.patch(args.fileId, {
+			isMarkedDeleted: true,
+		});
+	},
+});
+
+export const restoreFile = mutation({
+	args: {
+		fileId: v.id("files"),
+	},
+	async handler(ctx, args) {
+		const access = await hasAccessToFile(ctx, args.fileId);
+
+		if (!access) {
+			throw new ConvexError("No access to file");
+		}
+
+		const isAdmin =
+			access.user.orgIds.find((orgs) => orgs.orgId === access.file.orgId)
+				?.role === "admin";
+
+		if (!isAdmin) {
+			throw new ConvexError("You don't have permission to delete this file");
+		}
+
+		await ctx.db.patch(args.fileId, {
+			isMarkedDeleted: false,
+		});
 	},
 });
 
@@ -96,6 +147,7 @@ export const getFiles = query({
 		orgId: v.string(),
 		query: v.optional(v.string()),
 		fav: v.optional(v.boolean()),
+		deletedOnly: v.optional(v.boolean()),
 	},
 	async handler(ctx, args) {
 		const hasAccess = await hasAccessToOrg(ctx, args.orgId);
@@ -131,7 +183,20 @@ export const getFiles = query({
 			);
 		}
 
-		return files;
+		if (args.deletedOnly) {
+			files = files.filter((file) => file.isMarkedDeleted);
+		} else {
+			files = files.filter((file) => !file.isMarkedDeleted);
+		}
+
+		const filesWithUrl = await Promise.all(
+			files.map(async (file) => ({
+				...file,
+				url: await ctx.storage.getUrl(file.fileId),
+			}))
+		);
+
+		return filesWithUrl;
 	},
 });
 
