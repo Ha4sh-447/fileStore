@@ -18,6 +18,8 @@ import { FileIcon, Loader2, StarIcon } from "lucide-react";
 import { SearchBar } from "../_components/searchBar";
 import { useState } from "react";
 import FavoritesPage from "../favorites/page";
+import { DataTable } from "./fileTable";
+import { columns } from "./columns";
 
 function PlaceHolder() {
 	return (
@@ -63,6 +65,13 @@ export default function FilesPage({
 		orgId ? { orgId, query, fav, deletedOnly } : "skip"
 	);
 	const isLoading = files === undefined;
+
+	const filesWithFav =
+		files?.map((fi) => ({
+			...fi,
+			isFav: (favorites ?? []).some((favorite) => favorite.fileId === fi._id),
+		})) ?? [];
+
 	return (
 		<div className="w-full">
 			{isLoading && (
@@ -80,15 +89,11 @@ export default function FilesPage({
 						<UploadBtn />
 					</div>
 
+					<DataTable columns={columns} data={filesWithFav} />
+
 					<div className="grid grid-cols-3 gap-4">
-						{files?.map((file) => {
-							return (
-								<FileCard
-									favorites={favorites ?? []}
-									key={file._id}
-									file={file}
-								/>
-							);
+						{filesWithFav?.map((file) => {
+							return <FileCard key={file._id} file={file} />;
 						})}
 					</div>
 					{fav && files.length === 0 && (

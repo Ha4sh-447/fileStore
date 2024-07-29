@@ -51,7 +51,11 @@ import { Protect } from "@clerk/nextjs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format, formatDistance, formatRelative, subDays } from "date-fns";
 
-function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
+export function FileActions({
+	file,
+}: {
+	file: Doc<"files"> & { isFav: boolean; url: string | null };
+}) {
 	const deleteFile = useMutation(api.files.deleteFile);
 	const restoreFile = useMutation(api.files.restoreFile);
 	const toggleFav = useMutation(api.files.addFavorite);
@@ -75,7 +79,7 @@ function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 							});
 						}}
 					>
-						{isFav ? (
+						{file.isFav ? (
 							<div className="flex gap-1 items-center">
 								<StarIcon className="w-4 h-4" /> Unfavorite
 							</div>
@@ -87,7 +91,10 @@ function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 					</DropdownMenuItem>
 					<DropdownMenuItem
 						className="flex gap-1  items-center cursor-pointer"
-						onClick={() => window.open("", "_blank")}
+						onClick={() => {
+							if (!file.url) return;
+							window.open(file.url, "_blank");
+						}}
 					>
 						<FileIcon className="w-4 h-4" />
 						Download
@@ -154,22 +161,10 @@ function FileActions({ file, isFav }: { file: Doc<"files">; isFav: boolean }) {
 	);
 }
 
-//  !Image route fix needed
-// function getFileUrl(fileId: Id<"_storage">): string {
-// 	const imageUrl = `${process.env.NEXT_PUBLIC_CONVEX_URL}/getImage`;
-// 	// const imageUrl = `${process.env.NEXT_PUBLIC_CONVEX_URL}/api/storage/${fileId}`;
-// 	const url = new URL(imageUrl);
-// 	url.searchParams.set("storageId", fileId);
-// 	return url.href;
-// 	// return imageUrl;
-// }
-
 export function FileCard({
 	file,
-	favorites,
 }: {
-	file: Doc<"files">;
-	favorites: Doc<"favorites">[];
+	file: Doc<"files"> & { isFav: boolean; url: string | null };
 }) {
 	const userProfile = useQuery(api.users.getUserProfile, {
 		userId: file.userId,
@@ -178,12 +173,7 @@ export function FileCard({
 		image: <ImageIcon />,
 		pdf: <FileTextIcon />,
 		csv: <GanttChartIcon />,
-		// https://elated-ibex-292.convex.cloud/api/storage/f18a7832-d613-4aa4-a18b-0f0898de988e
 	} as Record<Doc<"files">["type"], ReactNode>;
-
-	const isFavorited = favorites.some(
-		(favorite) => favorite.fileId === file._id
-	);
 
 	return (
 		<Card>
@@ -193,13 +183,18 @@ export function FileCard({
 					{file.name}
 				</CardTitle>
 				<div className="absolute top-3 right-3">
-					<FileActions file={file} isFav={isFavorited} />
+					<FileActions file={file} />
 				</div>
 				{/* <CardDescription>Card Description</CardDescription> */}
 			</CardHeader>
 			<CardContent className="h-[200px] flex justify-center items-center">
 				{file.type === "image" && (
-					<Image alt={file.name} width="200" height="100" src={""} />
+					<Image
+						alt={file.name}
+						width="200"
+						height="100"
+						src={file.url ? file.url : ""}
+					/>
 				)}
 
 				{file.type === "csv" && <GanttChartIcon className="w-20 h-20" />}
