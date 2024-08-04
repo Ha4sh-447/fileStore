@@ -61,6 +61,7 @@ export function FileActions({
 	const toggleFav = useMutation(api.files.addFavorite);
 	const { toast } = useToast();
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+	const me = useQuery(api.users.getCurrentUser);
 
 	return (
 		<>
@@ -99,7 +100,16 @@ export function FileActions({
 						<FileIcon className="w-4 h-4" />
 						Download
 					</DropdownMenuItem>
-					<Protect role="org:admin" fallback={<></>}>
+					<Protect
+						condition={(check) => {
+							return (
+								check({
+									role: "org:admin",
+								}) || me?._id === file.userId
+							);
+						}}
+						fallback={<></>}
+					>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							className="flex gap-1 items-center cursor-pointer"
@@ -192,8 +202,9 @@ export function FileCard({
 					<Image
 						alt={file.name}
 						width="200"
-						height="100"
+						height="200"
 						src={file.url ? file.url : ""}
+						className="max-w-full max-h-full object-contain"
 					/>
 				)}
 

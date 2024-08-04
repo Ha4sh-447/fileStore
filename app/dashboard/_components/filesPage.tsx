@@ -14,12 +14,23 @@ import { useMutation, useQuery } from "convex/react";
 import { UploadBtn } from "./uploadBtn";
 import { FileCard } from "./fileCard";
 import Image from "next/image";
-import { FileIcon, Loader2, StarIcon } from "lucide-react";
+import { FileIcon, GridIcon, Loader2, RowsIcon, StarIcon } from "lucide-react";
 import { SearchBar } from "../_components/searchBar";
 import { useState } from "react";
 import FavoritesPage from "../favorites/page";
 import { DataTable } from "./fileTable";
 import { columns } from "./columns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Doc } from "@/convex/_generated/dataModel";
+import { Label } from "@/components/ui/label";
 
 function PlaceHolder() {
 	return (
@@ -50,6 +61,7 @@ export default function FilesPage({
 	const organization = useOrganization();
 	const user = useUser();
 	const [query, setQuery] = useState("");
+	const [type, setType] = useState<Doc<"files">["type"] | "all">("all");
 	let orgId: string | undefined = undefined;
 	if (organization.isLoaded && user.isLoaded) {
 		orgId = organization.organization?.id ?? user.user?.id;
@@ -62,7 +74,7 @@ export default function FilesPage({
 
 	const files = useQuery(
 		api.files.getFiles,
-		orgId ? { orgId, query, fav, deletedOnly } : "skip"
+		orgId ? { orgId, query, fav, deletedOnly, type } : "skip"
 	);
 	const isLoading = files === undefined;
 
@@ -89,20 +101,71 @@ export default function FilesPage({
 						<UploadBtn />
 					</div>
 
-					<DataTable columns={columns} data={filesWithFav} />
-
-					<div className="grid grid-cols-3 gap-4">
-						{filesWithFav?.map((file) => {
-							return <FileCard key={file._id} file={file} />;
-						})}
-					</div>
-					{fav && files.length === 0 && (
-						<div>
-							<div className="text-2xl">Nothing in favorites</div>
+					<Tabs defaultValue="grid">
+						<div className="flex justify-between">
+							<TabsList>
+								<TabsTrigger value="grid">
+									<GridIcon />
+									Grid
+								</TabsTrigger>
+								<TabsTrigger value="table">
+									<RowsIcon />
+									Table
+								</TabsTrigger>
+							</TabsList>
+							<div className="flex gap-2 items-center">
+								<Label htmlFor="selectType">Filter</Label>
+								<Select
+									value={type}
+									onValueChange={(cat) => {
+										setType(cat as any);
+									}}
+								>
+									<SelectTrigger id="selectType" className="w-[150px]">
+										<SelectValue placeholder="All" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">All</SelectItem>
+										<SelectItem value="image">Images</SelectItem>
+										<SelectItem value="pdf">PDF</SelectItem>
+										<SelectItem value="csv">CSV</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
 						</div>
-					)}
-					{!fav && !query && files.length === 0 && <PlaceHolder />}
-					{!fav && query && files.length === 0 && <PlaceHolder />}
+						<TabsContent value="grid">
+							<DataTable columns={columns} data={filesWithFav} />
+						</TabsContent>
+						<TabsContent value="table">
+							<ScrollArea className="rounded-md p-4 border-b h-[500px]">
+								<div className="grid grid-cols-3 gap-4">
+									{filesWithFav?.map((file) => {
+										return <FileCard key={file._id} file={file} />;
+									})}
+								</div>
+							</ScrollArea>
+							{!fav && !query && files.length === 0 && !deletedOnly && (
+								<PlaceHolder />
+							)}
+							{!fav && query && !deletedOnly && files.length === 0 && (
+								<PlaceHolder />
+							)}
+							{fav && files.length === 0 && (
+								<div>
+									<div className="text-2xl flex items-center justify-center">
+										Nothing in favorites.
+									</div>
+								</div>
+							)}
+							{deletedOnly && files.length === 0 && (
+								<div>
+									<div className="text-2xl flex items-center justify-center">
+										You have nothing in trash.
+									</div>
+								</div>
+							)}
+						</TabsContent>
+					</Tabs>
 				</>
 			)}
 		</div>
