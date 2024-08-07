@@ -12,7 +12,7 @@ export function Header() {
 				</Link>
 				<div className="flex gap-2">
 					<ClerkSignInFunc />
-					<OrganizationSwitcher />
+					<OrganizationSwitcher afterCreateOrganizationUrl="http://localhost:3000/dashboard/files" />
 					<UserButton />
 					{/* <UserProfile /> */}
 				</div>

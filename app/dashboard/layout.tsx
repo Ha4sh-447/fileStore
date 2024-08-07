@@ -14,11 +14,11 @@ export default function DashboardLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<main className="container mx-auto pt-6">
-			<div className="flex gap-8">
-				<SideBar />
-				<div className="w-full">{children}</div>
-			</div>
+		<main className="container mx-auto pt-6 flex gap-8 h-screen">
+			{/* <div className="flex gap-8"> */}
+			<SideBar />
+			<div className="w-full">{children}</div>
+			{/* </div> */}
 		</main>
 	);
 }

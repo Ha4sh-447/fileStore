@@ -5,6 +5,8 @@ import clsx from "clsx";
 import { FileIcon, StarIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useOrganization, useUser } from "@clerk/nextjs";
+import StorageInfo from "./_components/storageInfo";
 
 export default function SideBar() {
 	const pathname = usePathname();
@@ -44,6 +46,8 @@ export default function SideBar() {
 					<Trash2Icon /> Trash
 				</Button>
 			</Link>
+
+			<StorageInfo />
 		</div>
 	);
 }

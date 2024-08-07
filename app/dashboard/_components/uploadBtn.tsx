@@ -79,6 +79,9 @@ export function UploadBtn() {
 			"image/png": "image",
 			"application/pdf": "pdf",
 			"text/csv": "csv",
+			"image/jpeg": "image",
+			"image/jpg": "image",
+			"image/webp": "image",
 		} as Record<string, Doc<"files">["type"]>;
 
 		try {
@@ -116,8 +119,10 @@ export function UploadBtn() {
 
 	let orgId: string | undefined = undefined;
 	if (organization.isLoaded && user.isLoaded) {
+		console.log(true);
 		orgId = organization.organization?.id ?? user.user?.id;
 	}
+	console.log(orgId);
 
 	const [isDialogOpen, setDialogOpen] = useState(false);
 	// console.log(organization?.id);

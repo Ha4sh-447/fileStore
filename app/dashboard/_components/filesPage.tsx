@@ -63,6 +63,7 @@ export default function FilesPage({
 	const [query, setQuery] = useState("");
 	const [type, setType] = useState<Doc<"files">["type"] | "all">("all");
 	let orgId: string | undefined = undefined;
+
 	if (organization.isLoaded && user.isLoaded) {
 		orgId = organization.organization?.id ?? user.user?.id;
 	}
@@ -86,7 +87,13 @@ export default function FilesPage({
 
 	return (
 		<div className="w-full">
-			{isLoading && (
+			{user.isLoaded && !user.isSignedIn && (
+				<div className="flex flex-col gap-8 w-full items-center mt-10">
+					<div className="text-2xl"> Sign In to upload/view your files</div>
+				</div>
+			)}
+
+			{isLoading && user.isSignedIn && (
 				<div className="flex flex-col gap-8 w-full items-center mt-10">
 					<Loader2 className="h-24 w-24 animate-spin" />
 					<div className="text-2xl">Loading...</div>

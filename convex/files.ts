@@ -144,6 +144,33 @@ export const restoreFile = mutation({
 	},
 });
 
+export const getFileMetaData = query({
+	args: {
+		orgId: v.string(),
+	},
+	async handler(ctx, args) {
+		const hasAccess = await hasAccessToOrg(ctx, args.orgId);
+		if (!hasAccess) {
+			return [];
+		}
+
+		const files = await ctx.db
+			.query("files")
+			.withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+			.collect();
+
+		// collect metadata
+		// can be optimized?
+		const fileMetaData = Promise.all(
+			files.map(async (file) => {
+				const metaData = await ctx.db.system.get(file.fileId);
+				return metaData;
+			})
+		);
+		return fileMetaData;
+	},
+});
+
 export const getFiles = query({
 	args: {
 		orgId: v.string(),
@@ -204,6 +231,26 @@ export const getFiles = query({
 		);
 
 		return filesWithUrl;
+	},
+});
+
+export const listAllFiles = query({
+	args: {
+		orgId: v.string(),
+	},
+	handler: async (ctx, args) => {
+		const user = await hasAccessToOrg(ctx, args.orgId);
+		if (!user) {
+			throw new Error("Unauthorized access");
+		}
+
+		// Query for files where either the organization ID or user ID matches
+		const files = await ctx.db.system
+			.query("_storage")
+			// .filter((file) => file.field("metadata.ownerId").equals(args.orgId))
+			.collect();
+
+		return files;
 	},
 });
 
