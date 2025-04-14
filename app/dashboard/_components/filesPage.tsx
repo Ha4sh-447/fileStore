@@ -108,16 +108,16 @@ export default function FilesPage({
 						<UploadBtn />
 					</div>
 
-					<Tabs defaultValue="grid">
+					<Tabs defaultValue="table">
 						<div className="flex justify-between">
 							<TabsList>
 								<TabsTrigger value="grid">
-									<GridIcon />
-									Grid
+									<RowsIcon />
+								Table	
 								</TabsTrigger>
 								<TabsTrigger value="table">
-									<RowsIcon />
-									Table
+									<GridIcon />
+									Grid
 								</TabsTrigger>
 							</TabsList>
 							<div className="flex gap-2 items-center">
