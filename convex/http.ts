@@ -1,5 +1,4 @@
 import { httpRouter } from "convex/server";
-
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { roles } from "./schema";
@@ -7,71 +6,107 @@ import { roles } from "./schema";
 const http = httpRouter();
 
 http.route({
-	path: "/clerk",
-	method: "POST",
-	handler: httpAction(async (ctx, request) => {
-		const payloadString = await request.text();
-		const headerPayload = request.headers;
+  path: "/clerk",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const payloadString = await request.text();
+    const headerPayload = request.headers;
 
-		try {
-			const result = await ctx.runAction(internal.clerk.fulfill, {
-				payload: payloadString,
-				headers: {
-					"svix-id": headerPayload.get("svix-id")!,
-					"svix-timestamp": headerPayload.get("svix-timestamp")!,
-					"svix-signature": headerPayload.get("svix-signature")!,
-				},
-			});
+    try {
+      // Create a consistent tokenIdentifier format
+      // Create a consistent tokenIdentifier format
+      const createTokenIdentifier = (userId: string) =>
+        `https://${process.env.CLERK_HOSTNAME || "destined-heron-54.clerk.accounts.dev"}|${userId}`;
 
-			console.log(result.data);
+      const result = await ctx.runAction(internal.clerk.fulfill, {
+        payload: payloadString,
+        headers: {
+          "svix-id": headerPayload.get("svix-id")!,
+          "svix-timestamp": headerPayload.get("svix-timestamp")!,
+          "svix-signature": headerPayload.get("svix-signature")!,
+        },
+      });
 
-			switch (result.type) {
-				case "user.created":
-					await ctx.runMutation(internal.users.createUser, {
-						tokenIdentifier: `https://${process.env.CLERK_HOSTNAME}|${result.data.id}`,
-						name: `${result.data.first_name ?? ""} ${result.data.last_name ?? ""}`,
-						image: result.data.image_url,
-					});
-					break;
-				case "user.updated":
-					await ctx.runMutation(internal.users.updateUser, {
-						tokenIdentifier: `https://destined-heron-54.clerk.accounts.dev|${result.data.id}`,
-						name: `${result.data.first_name ?? ""} ${
-							result.data.last_name ?? ""
-						}`,
-						image: result.data.image_url,
-					});
-					break;
-				case "organizationMembership.created":
-					await ctx.runMutation(internal.users.addOrgsIdtoUser, {
-						tokenIdentifier: `https://${process.env.CLERK_HOSTNAME}|${result.data.public_user_data.user_id}`,
-						orgId: result.data.organization.id,
-						role: result.data.role === "admin" ? "admin" : "member",
-					});
-					break;
+      console.log("Webhook event type:", result.type);
+      console.log("Webhook data:", JSON.stringify(result.data, null, 2));
 
-				case "organizationMembership.updated":
-					await ctx.runMutation(internal.users.updateUserRoleInOrgs, {
-						tokenIdentifier: `https://destined-heron-54.clerk.accounts.dev|${result.data.public_user_data.user_id}`,
-						orgId: result.data.organization.id,
-						// BUG
-						// on formation of an organization by an admin, it
-						role: result.data.role === "org:admin" ? "admin" : "member",
-					});
-					break;
-			}
+      switch (result.type) {
+        case "user.created":
+          console.log(
+            "Processing user.created event for user:",
+            result.data.id,
+          );
+          await ctx.runMutation(internal.users.createUser, {
+            tokenIdentifier: createTokenIdentifier(result.data.id),
+            name: `${result.data.first_name ?? ""} ${result.data.last_name ?? ""}`.trim(),
+            image: result.data.image_url,
+          });
+          console.log("User created successfully in Convex");
+          break;
 
-			return new Response(null, {
-				status: 200,
-			});
-		} catch (err) {
-			return new Response("Webhook Error", {
-				status: 400,
-			});
-		}
-	}),
+        case "user.updated":
+          console.log(
+            "Processing user.updated event for user:",
+            result.data.id,
+          );
+          await ctx.runMutation(internal.users.updateUser, {
+            tokenIdentifier: createTokenIdentifier(result.data.id),
+            name: `${result.data.first_name ?? ""} ${result.data.last_name ?? ""}`.trim(),
+            image: result.data.image_url,
+          });
+          console.log("User updated successfully in Convex");
+          break;
+
+        case "organizationMembership.created":
+          console.log(
+            "Processing organizationMembership.created event for user:",
+            result.data.public_user_data.user_id,
+          );
+          await ctx.runMutation(internal.users.addOrgsIdtoUser, {
+            tokenIdentifier: createTokenIdentifier(
+              result.data.public_user_data.user_id,
+            ),
+            orgId: result.data.organization.id,
+            role: result.data.role === "org:admin" ? "admin" : "member", // Fixed role mapping
+          });
+          console.log("Organization membership created successfully in Convex");
+          break;
+
+        case "organizationMembership.updated":
+          console.log(
+            "Processing organizationMembership.updated event for user:",
+            result.data.public_user_data.user_id,
+          );
+          await ctx.runMutation(internal.users.updateUserRoleInOrgs, {
+            tokenIdentifier: createTokenIdentifier(
+              result.data.public_user_data.user_id,
+            ),
+            orgId: result.data.organization.id,
+            role: result.data.role === "org:admin" ? "admin" : "member", // Fixed role mapping
+          });
+          console.log("Organization membership updated successfully in Convex");
+          break;
+
+        default:
+          console.log("Unhandled webhook event type:", result.type);
+      }
+
+      return new Response(null, {
+        status: 200,
+      });
+    } catch (err) {
+      console.error("Webhook Error:", err);
+      return new Response(
+        `Webhook Error: ${err instanceof Error ? err.message : String(err)}`,
+        {
+          status: 400,
+        },
+      );
+    }
+  }),
 });
 
+export default http;
 // !Image route
 // http.route({
 // 	path: "/getImage",
@@ -90,4 +125,4 @@ http.route({
 // 	}),
 // });
 
-export default http;
+//export default http;
